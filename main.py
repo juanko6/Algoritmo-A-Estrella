@@ -104,12 +104,26 @@ def posiciones_adyacentes(posicion, mapi):
 
 # Obtener el nodo de la lista frontera con menor f(n) = g(n) + h(n)
 def obtener_nodo_con_menor_f(lista_frontera):
-    return min(lista_frontera, key=lambda nodo: nodo.f)
+
+    # Inicializamos el nodo con menor f como None
+    nodo_con_menor_f = None
+    menor_f = float('inf')  # Inicializamos con un valor infinito para comparar
+
+    # Recorremos cada nodo en la lista frontera
+    for nodo in lista_frontera:
+        f_actual = nodo.g + nodo.h  # En este caso h siempre es 0, así que f_actual es solo nodo.g
+
+        # Si encontramos un nodo con un f menor, lo actualizamos
+        if f_actual < menor_f:
+            menor_f = f_actual
+            nodo_con_menor_f = nodo
+
+    return nodo_con_menor_f  # Retornamos el nodo con el menor valor de f
 
 
 # A* Algorithm
 def a_estrella(mapa, inicio, meta, camino):
-    global LF, LI
+    
     LF.clear()  # Resetear la lista frontera
     LI.clear()  # Resetear la lista interior
     nodo_inicial = Nodo(f=0, g=0, posicion=inicio)
@@ -178,8 +192,6 @@ def calcular_coste(nodo_actual, nodo_hijo):
         return 1.5  # Movimiento diagonal
     else:
         return 1  # Movimiento horizontal o vertical
-
-
 
 
 def imprimir_matriz_camino(camino):
