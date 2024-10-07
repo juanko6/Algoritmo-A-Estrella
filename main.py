@@ -100,8 +100,6 @@ def posiciones_adyacentes(posicion, mapi):
     
     return posiciones_validas
 
-
-
 # Obtener el nodo de la lista frontera con menor f(n) = g(n) + h(n)
 def obtener_nodo_con_menor_f(lista_frontera):
 
@@ -120,6 +118,50 @@ def obtener_nodo_con_menor_f(lista_frontera):
 
     return nodo_con_menor_f  # Retornamos el nodo con el menor valor de f
 
+# Obtener el nodo de la lista frontera con menor f(n) = g(n) + h(n)
+def obtener_nodo_con_menor_f_heuristica(lista_frontera, objetivo):
+    # Inicializamos el nodo con menor f como None
+    nodo_con_menor_f = None
+    menor_f = float('inf')  # Inicializamos con un valor infinito para comparar
+
+    # Recorremos cada nodo en la lista frontera
+    for nodo in lista_frontera:
+        # Calculamos f = g + h (donde h es la heurística entre la posición del nodo y el objetivo)
+        #f_actual = nodo.g + nodo.h  # En este caso h siempre es 0, así que f_actual es solo nodo.g
+        f_actual = nodo.g + calcular_heuristica_manhattan(nodo.posicion, objetivo)
+        #f_actual = nodo.g + calcular_heuristica_euclidiana(nodo.posicion, objetivo)
+        #f_actual = nodo.g + calcular_heuristica_chebyshev(nodo.posicion, objetivo)
+        #f_actual = nodo.g + calcular_heuristica_hamming(nodo.posicion, objetivo)
+        #f_actual = nodo.g + calcular_heuristica_canberra(nodo.posicion, objetivo)
+
+        # Si encontramos un nodo con un f menor, lo actualizamos
+        if f_actual < menor_f:
+            menor_f = f_actual
+            nodo_con_menor_f = nodo
+
+    return nodo_con_menor_f  # Retornamos el nodo con el menor valor de f
+
+# Función para calcular la heurística 
+def calcular_heuristica_manhattan(posicion, objetivo):
+    return abs(posicion.getFila() - objetivo.getFila()) + abs(posicion.getCol() - objetivo.getCol())
+
+# Función para calcular la heurística usando la distancia Euclidiana
+def calcular_heuristica_euclidiana(posicion, objetivo):
+    return ((posicion.getFila() - objetivo.getFila())**2 + (posicion.getCol() - objetivo.getCol())**2) ** 0.5
+
+# Función para calcular la heurística usando la distancia Chebyshev
+def calcular_heuristica_chebyshev(posicion, objetivo):
+    return max(abs(posicion.getFila() - objetivo.getFila()), abs(posicion.getCol() - objetivo.getCol()))
+
+# Función para calcular la heurística usando la distancia Hamming
+def calcular_heuristica_hamming(posicion, objetivo):
+    return (posicion.getFila() != objetivo.getFila()) + (posicion.getCol() != objetivo.getCol())
+
+# Función para calcular la heurística usando la distancia Canberra
+def calcular_heuristica_canberra(posicion, objetivo):
+    return (abs(posicion.getFila() - objetivo.getFila()) / (abs(posicion.getFila()) + abs(objetivo.getFila())) +
+            abs(posicion.getCol() - objetivo.getCol()) / (abs(posicion.getCol()) + abs(objetivo.getCol())))
+
 
 # A* Algorithm
 def a_estrella(mapa, inicio, meta, camino):
@@ -130,7 +172,8 @@ def a_estrella(mapa, inicio, meta, camino):
     LF.append(nodo_inicial)  # Inicializamos la lista frontera con el nodo inicial
 
     while LF:
-        nodo_actual = obtener_nodo_con_menor_f(LF)
+        #nodo_actual = obtener_nodo_con_menor_f(LF)
+        nodo_actual = obtener_nodo_con_menor_f_heuristica(LF, meta)
 
         # Si hemos llegado a la meta, reconstruir el camino y calcular el coste total
         if nodo_actual.posicion.getFila() == meta.getFila() and nodo_actual.posicion.getCol() == meta.getCol():
@@ -160,7 +203,9 @@ def a_estrella(mapa, inicio, meta, camino):
 
     return None  # Si no hay solución, devolvemos None y un coste total de 0
 
-
+# A*ε Algorithm
+def a_estrella_epsilon():
+    return print("A*ε Algorithm")  
 
 # Función para reconstruir el camino desde la meta hasta el inicio y actualizar la matriz de camino
 def reconstruir_camino(nodo, camino):
@@ -181,7 +226,6 @@ def reconstruir_camino(nodo, camino):
     
     return camino, coste_total  # Devolvemos el camino y el coste total
 
-
 # Función para calcular el coste de moverse de un nodo a otro
 def calcular_coste(nodo_actual, nodo_hijo):
     fila_actual, col_actual = nodo_actual.posicion.getFila(), nodo_actual.posicion.getCol()
@@ -192,7 +236,6 @@ def calcular_coste(nodo_actual, nodo_hijo):
         return 1.5  # Movimiento diagonal
     else:
         return 1  # Movimiento horizontal o vertical
-
 
 def imprimir_matriz_camino(camino):
     for fila in camino:
@@ -206,7 +249,7 @@ def main():
     reloj=pygame.time.Clock()
     
     if len(sys.argv)==1: #si no se indica un mapa coge mapa.txt por defecto
-        file='mapa.txt'
+        file='mapa5.txt'
     else:
         file=sys.argv[-1]
          
@@ -267,8 +310,13 @@ def main():
 
                         else:
                             ###########################                                                   
-                            #coste, cal=llamar a A estrella subepsilon                       
-                            if coste==-1:
+                            #coste, cal=llamar a A estrella subepsilon
+                            resultado=a_estrella_epsilon()                    
+                            if resultado:
+                                print ("Camino encontrado con A*ε")
+                                camino, coste = resultado
+                                imprimir_matriz_camino(camino)
+                            else:
                                 print('Error: No existe un camino válido entre origen y destino')
                             
                 elif esMapa(mapi,pos):                    
