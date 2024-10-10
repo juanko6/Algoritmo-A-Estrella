@@ -28,7 +28,7 @@ def bueno(mapi, pos):
     res= False
     
     if mapi.getCelda(pos.getFila(),pos.getCol())==0 or mapi.getCelda(pos.getFila(),pos.getCol())==4 or mapi.getCelda(pos.getFila(),pos.getCol())==5:
-       res=True
+        res=True
     
     return res
     
@@ -47,15 +47,14 @@ def pulsaBoton(mapi, posicion):
     res=-1
     
     if posicion[0] > (mapi.getAncho()*(TAM+MARGEN)+MARGEN)//2-65 and posicion[0] < (mapi.getAncho()*(TAM+MARGEN)+MARGEN)//2-15 and \
-       posicion[1] > mapi.getAlto()*(TAM+MARGEN)+MARGEN+10 and posicion[1] < MARGEN_INFERIOR+mapi.getAlto()*(TAM+MARGEN)+MARGEN:
+        posicion[1] > mapi.getAlto()*(TAM+MARGEN)+MARGEN+10 and posicion[1] < MARGEN_INFERIOR+mapi.getAlto()*(TAM+MARGEN)+MARGEN:
         res=1
     elif posicion[0] > (mapi.getAncho()*(TAM+MARGEN)+MARGEN)//2+15 and posicion[0] < (mapi.getAncho()*(TAM+MARGEN)+MARGEN)//2+65 and \
-       posicion[1] > mapi.getAlto()*(TAM+MARGEN)+MARGEN+10 and posicion[1] < MARGEN_INFERIOR+mapi.getAlto()*(TAM+MARGEN)+MARGEN:
+        posicion[1] > mapi.getAlto()*(TAM+MARGEN)+MARGEN+10 and posicion[1] < MARGEN_INFERIOR+mapi.getAlto()*(TAM+MARGEN)+MARGEN:
         res=2
 
-    
     return res
-   
+
 # Construye la matriz para guardar el camino
 def inic(mapi):    
     cam=[]
@@ -70,6 +69,14 @@ def inic(mapi):
 def imprimir_origen_destino(origen, destino):
     print(f"Origen: Fila {origen.getFila()}, Columna {origen.getCol()}")
     print(f"Destino: Fila {destino.getFila()}, Columna {destino.getCol()}")
+
+#funcion que hace una matriz con -1 para saber que nodos fueron explorados
+def inicializar_matriz_exploracion(mapa):
+    filas = len(mapa.mapa)
+    columnas = len(mapa.mapa[0])
+    matriz_exploracion = [[-1 for _ in range(columnas)] for _ in range(filas)]
+    return matriz_exploracion
+
 
 # Devuelve las posiciones adyacentes (octaconectadas) a una posición dada
 def posiciones_adyacentes(posicion, mapi):
@@ -166,18 +173,27 @@ def calcular_heuristica_canberra(posicion, objetivo):
 # A* Algorithm
 def a_estrella(mapa, inicio, meta, camino):
     
+    matriz_exploracion = inicializar_matriz_exploracion(mapa)  # Crear la matriz de exploración
+
     LF.clear()  # Resetear la lista frontera
     LI.clear()  # Resetear la lista interior
     nodo_inicial = Nodo(f=0, g=0, posicion=inicio)
     LF.append(nodo_inicial)  # Inicializamos la lista frontera con el nodo inicial
+    iteracion = 1  # Contador de iteraciones para la matriz
+
 
     while LF:
         #nodo_actual = obtener_nodo_con_menor_f(LF)
         nodo_actual = obtener_nodo_con_menor_f_heuristica(LF, meta)
 
+        # Marcar el nodo actual en la matriz de exploración
+        matriz_exploracion[nodo_actual.posicion.getFila()][nodo_actual.posicion.getCol()] = iteracion
+        iteracion += 1
+
         # Si hemos llegado a la meta, reconstruir el camino y calcular el coste total
         if nodo_actual.posicion.getFila() == meta.getFila() and nodo_actual.posicion.getCol() == meta.getCol():
-            return reconstruir_camino(nodo_actual, camino)  # Devolverá el camino y el coste total
+            camino, coste_total = reconstruir_camino(nodo_actual, camino)
+            return camino, coste_total, matriz_exploracion  # Devolver el camino, coste y la matriz de exploración
 
         LF.remove(nodo_actual)
         LI.append(nodo_actual)
@@ -201,7 +217,7 @@ def a_estrella(mapa, inicio, meta, camino):
                 nodo_hijo.f = nodo_hijo.g
                 nodo_hijo.padre = nodo_actual
 
-    return None  # Si no hay solución, devolvemos None y un coste total de 0
+    return None, 0, matriz_exploracion  # Devolver None, 0 y la matriz si no hay solución
 
 # A*ε Algorithm
 def a_estrella_epsilon():
@@ -241,6 +257,11 @@ def imprimir_matriz_camino(camino):
     for fila in camino:
         print(' '.join(fila))  # Imprimir cada fila unida por espacios
 
+def imprimir_matriz_exploracion(matriz_exploracion):
+    for fila in matriz_exploracion:
+        print(' '.join('.' if x == -1 else str(x) for x in fila))  # Mostrar '.' para no explorados
+
+
 
 # función principal
 def main():
@@ -252,7 +273,7 @@ def main():
         file='mapa5.txt'
     else:
         file=sys.argv[-1]
-         
+
     mapi=Mapa(file)     
     camino=inic(mapi)   
     
@@ -287,7 +308,7 @@ def main():
                 running=False 
             if event.type==pygame.MOUSEBUTTONDOWN:
                 pos=pygame.mouse.get_pos()  
-                  
+
                 if pulsaBoton(mapi, pos)==1 or pulsaBoton(mapi, pos)==2:
                     imprimir_origen_destino(origen, destino)  
                     
@@ -303,8 +324,14 @@ def main():
                             #coste, cal=llamar a A estrella 
                             
                             if resultado is not None:
-                                camino, coste = resultado
+                                camino, coste, matriz_exploracion = resultado
+                                print("Matriz Camino Solucion:")
                                 imprimir_matriz_camino(camino)
+                                print("\n")
+                                print("\n")
+                                print("\n")
+                                print("Matriz de exploración:")
+                                imprimir_matriz_exploracion(matriz_exploracion)
                             else:
                                 print('Error: No existe un camino válido entre origen y destino')
 
