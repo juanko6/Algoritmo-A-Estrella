@@ -3,7 +3,34 @@ from casilla import *
 from Nodo import *
 from mapa import *
 from pygame.locals import *
+import math
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 
+SELECCION_HEURISTICA = 2
+# 1 para h = 0
+# 2 para Manhattan, 
+# 3 para Euclidiana, 
+# 4 para Chebyshev
+# 5 para Hamming
+# 6 para Octil.
+
+# Configuraciónes
+
+VALORES_EPSILON = [0, 0.25, 0.5, 1, 2, 3, 4, 5]  # Diferentes valores de epsilon para A*ε
+RESULTADOS  = []  # Lista para almacenar los resultados de los experimentos
+
+HEURISTICAS = [1, 2, 3, 4, 5, 6]  # h=0, Manhattan, Euclidiana, Chebyshev, Hamming, Octil
+
+NOMBRES_HEURISTICAS = {
+    1: 'h = 0',
+    2: 'Manhattan',
+    3: 'Euclidiana',
+    4: 'Chebyshev',
+    5: 'Hamming',
+    6: 'Octil'
+}
 
 MARGEN=5
 MARGEN_INFERIOR=60
@@ -18,6 +45,49 @@ AMARILLO=(255, 255, 0)
 #Declaracion de listas frontera e interior
 LF=[] # estados alcanzados no seleccionados
 LI=[] # estados seleccionados y expandidos
+
+
+# ---------------------------------------------------------------------
+# Funciones para analisis
+# ---------------------------------------------------------------------
+
+def ejecutar_experimentos(mapa, origen, destino, camino):
+
+    for heuristica in HEURISTICAS:
+        global SELECCION_HEURISTICA
+        SELECCION_HEURISTICA = heuristica
+
+        resultado = a_estrella(mapa, origen, destino, camino)
+        if resultado is None:
+            print(f"Error: No se encontró un camino válido con la heurística {NOMBRES_HEURISTICAS[heuristica]}.")
+        else:
+            camino_resultado, coste_total, _, cal = resultado
+            RESULTADOS.append({
+                'algoritmo': 'A*',
+                'heuristica': NOMBRES_HEURISTICAS[heuristica],  # Asignar nombre de la heurística
+                'epsilon': None,
+                'coste': coste_total,
+                'calorias': cal,
+                'nodos_explorados': len(LI)  # Capturar la cantidad de nodos explorados
+            })
+
+        # Ejecutar A*ε para cada valor de epsilon
+        for epsilon in VALORES_EPSILON:
+            LI.clear()  # Limpiar nodos explorados antes de cada ejecución
+            resultado = a_estrella_epsilon(mapa, origen, destino, epsilon, camino)
+            if resultado is None:
+                print(f"Error: No se encontró un camino válido con epsilon {epsilon}.")
+            else:
+                camino_resultado, coste_total, _, cal = resultado
+                RESULTADOS.append({
+                    'algoritmo': 'A*ε',
+                    'heuristica': NOMBRES_HEURISTICAS[heuristica],  # Asignar nombre de la heurística
+                    'epsilon': epsilon,
+                    'coste': coste_total,
+                    'calorias': cal,
+                    'nodos_explorados': len(LI)  # Capturar la cantidad de nodos explorados
+                })
+
 
 # ---------------------------------------------------------------------
 # Funciones
@@ -106,24 +176,6 @@ def posiciones_adyacentes(posicion, mapi):
     
     return posiciones_validas
 
-# Obtener el nodo de la lista frontera con menor f(n) = g(n) + 0
-def obtener_nodo_con_menor_f(lista_frontera):
-
-    # Inicializamos el nodo con menor f como None
-    nodo_con_menor_f = None
-    menor_f = float('inf')  # Inicializamos con un valor infinito para comparar
-
-    # Recorremos cada nodo en la lista frontera
-    for nodo in lista_frontera:
-        f_actual = nodo.g + nodo.h  # En este caso h siempre es 0, así que f_actual es solo nodo.g
-
-        # Si encontramos un nodo con un f menor, lo actualizamos
-        if f_actual < menor_f:
-            menor_f = f_actual
-            nodo_con_menor_f = nodo
-
-    return nodo_con_menor_f  # Retornamos el nodo con el menor valor de f
-
 # Obtener el nodo de la lista frontera con menor f(n) = g(n) + h(n)
 def obtener_nodo_con_menor_f_heuristica(lista_frontera, objetivo):
     # Inicializamos el nodo con menor f como None
@@ -133,12 +185,7 @@ def obtener_nodo_con_menor_f_heuristica(lista_frontera, objetivo):
     # Recorremos cada nodo en la lista frontera
     for nodo in lista_frontera:
         # Calculamos f = g + h (donde h es la heurística entre la posición del nodo y el objetivo)
-        f_actual = nodo.g + (calcular_heuristica_manhattan(nodo.posicion, objetivo) * 0) # cuando h = 0
-        #f_actual = nodo.g + calcular_heuristica_manhattan(nodo.posicion, objetivo)
-        #f_actual = nodo.g + calcular_heuristica_euclidiana(nodo.posicion, objetivo)
-        #f_actual = nodo.g + calcular_heuristica_chebyshev(nodo.posicion, objetivo)
-        #f_actual = nodo.g + calcular_heuristica_hamming(nodo.posicion, objetivo)
-        #f_actual = nodo.g + calcular_heuristica_canberra(nodo.posicion, objetivo)
+        f_actual = nodo.g + seleccionar_heuristica(nodo.posicion, objetivo)
 
         # Si encontramos un nodo con un f menor, lo actualizamos
         if f_actual < menor_f:
@@ -163,10 +210,27 @@ def calcular_heuristica_chebyshev(posicion, objetivo):
 def calcular_heuristica_hamming(posicion, objetivo):
     return (posicion.getFila() != objetivo.getFila()) + (posicion.getCol() != objetivo.getCol())
 
-# Función para calcular la heurística usando la distancia Canberra
-def calcular_heuristica_canberra(posicion, objetivo):
-    return (abs(posicion.getFila() - objetivo.getFila()) / (abs(posicion.getFila()) + abs(objetivo.getFila())) +
-            abs(posicion.getCol() - objetivo.getCol()) / (abs(posicion.getCol()) + abs(objetivo.getCol())))
+# Función para calcular la heurística usando la distancia Octile
+def calcular_heuristica_octil(posicion, objetivo):
+    delta_fila = abs(posicion.getFila() - objetivo.getFila())
+    delta_col = abs(posicion.getCol() - objetivo.getCol())
+    return max(delta_fila, delta_col) + (math.sqrt(2) - 1) * min(delta_fila, delta_col)
+
+def seleccionar_heuristica(posicion, objetivo):
+    if SELECCION_HEURISTICA == 1:
+        return 0
+    elif SELECCION_HEURISTICA == 2:
+        return calcular_heuristica_manhattan(posicion, objetivo)
+    elif SELECCION_HEURISTICA == 3:
+        return calcular_heuristica_euclidiana(posicion, objetivo)
+    elif SELECCION_HEURISTICA == 4:
+        return calcular_heuristica_chebyshev(posicion, objetivo)
+    elif SELECCION_HEURISTICA == 5:
+        return calcular_heuristica_hamming(posicion, objetivo)
+    elif SELECCION_HEURISTICA == 6:
+        return calcular_heuristica_octil(posicion, objetivo)
+    else:
+        raise ValueError("Valor de SELECCION_HEURISTICA no válido")
 
 # A* Algorithm
 def a_estrella(mapa, inicio, meta, camino):
@@ -191,7 +255,8 @@ def a_estrella(mapa, inicio, meta, camino):
         # Si hemos llegado a la meta, reconstruir el camino y calcular el coste total
         if nodo_actual.posicion.getFila() == meta.getFila() and nodo_actual.posicion.getCol() == meta.getCol():
             camino, coste_total = reconstruir_camino(nodo_actual, camino, mapa)
-            return camino, coste_total, matriz_exploracion  # Devolver el camino, coste y la matriz de exploración
+
+            return camino, coste_total, matriz_exploracion, cal  # Devolver el camino, coste y la matriz de exploración y las calorias
 
         LF.remove(nodo_actual)
         LI.append(nodo_actual)
@@ -215,7 +280,7 @@ def a_estrella(mapa, inicio, meta, camino):
                 nodo_hijo.f = nodo_hijo.g
                 nodo_hijo.padre = nodo_actual
 
-    return None, 0, matriz_exploracion  # Devolver None, 0 y la matriz si no hay solución
+    return None
 
 # A*ε Algorithm
 def a_estrella_epsilon(mapa, inicio, meta, epsilon, camino):
@@ -228,9 +293,6 @@ def a_estrella_epsilon(mapa, inicio, meta, epsilon, camino):
     LF.append(nodo_inicial)  # Inicializamos la lista frontera con el nodo inicial
     iteracion = 0  # Contador de iteraciones para la matriz
     cal = 0
-
-
-
 
     while LF:
 
@@ -259,7 +321,8 @@ def a_estrella_epsilon(mapa, inicio, meta, epsilon, camino):
         # Si hemos llegado a la meta, reconstruir el camino y calcular el coste total
         if nodo_actual.posicion.getFila() == meta.getFila() and nodo_actual.posicion.getCol() == meta.getCol():
             camino, coste_total = reconstruir_camino(nodo_actual, camino, mapa)
-            return camino, coste_total, matriz_exploracion  # Devolver el camino, coste y la matriz de exploración
+
+            return camino, coste_total, matriz_exploracion, cal  # Devolver el camino, coste y la matriz de exploración
         
 
         LF.remove(nodo_actual)
@@ -275,7 +338,7 @@ def a_estrella_epsilon(mapa, inicio, meta, epsilon, camino):
             terreno_hijo = mapa.getCelda(hijo_posicion.getFila(), hijo_posicion.getCol())
             
             # Calcular el nuevo g basado en el gasto en calorías del terreno
-            calorias_nodo_hijo =  gasto_en_calorias(terreno_hijo)
+            calorias_nodo_hijo =  gasto_en_calorias(terreno_hijo) * (1 + epsilon)
             
             g_nuevo = nodo_actual.g + calorias_nodo_hijo
             cal += calorias_nodo_hijo
@@ -293,7 +356,7 @@ def a_estrella_epsilon(mapa, inicio, meta, epsilon, camino):
                 nodo_hijo.f = nodo_hijo.g
                 nodo_hijo.padre = nodo_actual
 
-    return None, 0, matriz_exploracion  # Devolver None, 0 y la matriz si no hay solución
+    return None, 0, matriz_exploracion, cal  # Devolver None, 0 y la matriz si no hay solución
 
 
 
@@ -360,8 +423,54 @@ def imprimir_matriz_exploracion(matriz_exploracion):
     for fila in matriz_exploracion:
         print(' '.join(str(x).rjust(3, ' ') if x != -1 else '.'.rjust(3, ' ') for x in fila))  # Mostrar '.' para no explorados
 
+def pulsaBoton(mapi, posicion):
+    res = -1
 
+    # Botón 1
+    if posicion[0] > (mapi.getAncho()*(TAM+MARGEN)+MARGEN)//2-65 and posicion[0] < (mapi.getAncho()*(TAM+MARGEN)+MARGEN)//2-15 and \
+        posicion[1] > mapi.getAlto()*(TAM+MARGEN)+MARGEN+10 and posicion[1] < MARGEN_INFERIOR+mapi.getAlto()*(TAM+MARGEN)+MARGEN:
+        res = 1
+    # Botón 2
+    elif posicion[0] > (mapi.getAncho()*(TAM+MARGEN)+MARGEN)//2+15 and posicion[0] < (mapi.getAncho()*(TAM+MARGEN)+MARGEN)//2+65 and \
+        posicion[1] > mapi.getAlto()*(TAM+MARGEN)+MARGEN+10 and posicion[1] < MARGEN_INFERIOR+mapi.getAlto()*(TAM+MARGEN)+MARGEN:
+        res = 2
+    # Botón 3 (Nuevo)
+    elif posicion[0] > (mapi.getAncho()*(TAM+MARGEN)+MARGEN)//2+85 and posicion[0] < (mapi.getAncho()*(TAM+MARGEN)+MARGEN)//2+135 and \
+        posicion[1] > mapi.getAlto()*(TAM+MARGEN)+MARGEN+10 and posicion[1] < MARGEN_INFERIOR+mapi.getAlto()*(TAM+MARGEN)+MARGEN:
+        res = 3
 
+    return res
+
+def graficar_resultados(RESULTADOS):
+    # Convertir los resultados en un DataFrame de pandas
+    df = pd.DataFrame(RESULTADOS)
+
+    # Filtrar los resultados de A*
+    df_a_estrella = df[df['algoritmo'] == 'A*']
+    
+    # Graficar el costo del camino solución para A* según la heurística
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4))  # Dos gráficos en una ventana
+
+    # Gráfico 1: Costo del camino vs. Heurística
+    ax[0].bar(df_a_estrella['heuristica'], df_a_estrella['coste'], color='skyblue')
+    ax[0].set_xlabel('Heurística')
+    ax[0].set_ylabel('Costo del Camino')
+    ax[0].set_title('Costo del Camino por A* según la Heurística')
+
+    # Filtrar los resultados de A*ε
+    df_a_estrella_epsilon = df[df['algoritmo'] == 'A*ε']
+    
+    # Gráfico 2: Calorías consumidas vs. epsilon
+    ax[1].bar(df_a_estrella_epsilon['epsilon'], df_a_estrella_epsilon['calorias'], color='orange', width=0.3)
+    ax[1].set_xlabel('Valor de Epsilon')
+    ax[1].set_ylabel('Calorías Consumidas')
+    ax[1].set_title('Calorías Consumidas por A*ε según el Valor de Epsilon')
+
+    # Mostrar solo los valores de epsilon en el eje x
+    ax[1].set_xticks(VALORES_EPSILON)
+
+    plt.tight_layout()  # Para ajustar los gráficos
+    plt.show()
 # función principal
 def main():
 
@@ -371,7 +480,7 @@ def main():
     reloj=pygame.time.Clock()
     
     if len(sys.argv)==1: #si no se indica un mapa coge mapa.txt por defecto
-        file='mapa6.txt'
+        file='mapa.txt'
     else:
         file=sys.argv[-1]
 
@@ -382,13 +491,16 @@ def main():
     altoVentana= MARGEN_INFERIOR+mapi.getAlto()*(TAM+MARGEN)+MARGEN    
     dimension=[anchoVentana,altoVentana]
     screen=pygame.display.set_mode(dimension)
-    pygame.display.set_caption("Practica 1")
+    pygame.display.set_caption("Practica 1 Juan Carlos Gutierrez")
     
     boton1=pygame.image.load("boton1.png").convert()
     boton1=pygame.transform.scale(boton1,[50, 30])
     
     boton2=pygame.image.load("boton2.png").convert()
     boton2=pygame.transform.scale(boton2,[50, 30])
+
+    boton3=pygame.image.load("boton3.png").convert()
+    boton3=pygame.transform.scale(boton3,[50, 30])
     
     personaje=pygame.image.load("rabbit.png").convert()
     personaje=pygame.transform.scale(personaje,[TAM, TAM])
@@ -401,7 +513,7 @@ def main():
     running= True    
     origen=Casilla(-1,-1)
     destino=Casilla(-1,-1)
-    
+
     while running:        
         #procesamiento de eventos
         for event in pygame.event.get():
@@ -425,7 +537,7 @@ def main():
                             #coste, cal=llamar a A estrella 
                             
                             if resultado is not None:
-                                camino, coste, matriz_exploracion = resultado
+                                camino, coste, matriz_exploracion, cal = resultado
                                 if camino and len(camino) > 0:
                                     print("Matriz Camino Solucion:")
                                     imprimir_matriz_camino(camino)
@@ -439,13 +551,13 @@ def main():
                             else:
                                 print('Error: No existe un camino válido entre origen y destino')
 
-                        else:
+                        elif pulsaBoton(mapi, pos)==2:
                             ###########################                                                   
                             #coste, cal=llamar a A estrella subepsilon
                             epsilon = 0.5
                             resultado=a_estrella_epsilon(mapi, origen, destino, epsilon, camino)                    
                             if resultado is not None:
-                                camino, coste, matriz_exploracion = resultado
+                                camino, coste, matriz_exploracion, cal = resultado
                                 if camino and len(camino) > 0:
                                     print("Matriz Camino Solucion:")
                                     imprimir_matriz_camino(camino)
@@ -458,7 +570,27 @@ def main():
                                     print("No se encontró un camino.")
                             else:
                                 print('Error: No existe un camino válido entre origen y destino')
-                            
+                                
+                # Botón 3: Ejecutar análisis
+                elif pulsaBoton(mapi, pos) == 3:
+                    # Verificar si el origen y el destino están definidos
+                    if origen.getFila() == -1 or destino.getFila() == -1:
+                        print("Error: No hay origen o destino. Por favor, seleccione un origen y destino antes de ejecutar el análisis.")
+                    else:
+                        # Inicializar posiciones de origen y destino para las pruebas
+                        camino = inic(mapi)  # Reinicializar la matriz 'camino' antes de la ejecución de los experimentos
+
+                        try:
+                            resultado = a_estrella(mapi, origen, destino, camino)
+                            if resultado is None:
+                                print("No se encontró un camino válido con A* para el origen y destino seleccionados.")
+                            else:
+                                ejecutar_experimentos(mapi, origen, destino, camino)
+                                print("Análisis ejecutado. Resultados:")
+                                graficar_resultados(RESULTADOS)
+                        except ValueError as e:
+                            print(f"Error: {str(e)}")
+
                 elif esMapa(mapi,pos):                    
                     if event.button==1: #botón izquierdo                        
                         colOrigen=pos[0]//(TAM+MARGEN)
@@ -502,6 +634,7 @@ def main():
         #pinta botón
         screen.blit(boton1, [anchoVentana//2-65, mapi.getAlto()*(TAM+MARGEN)+MARGEN+10])
         screen.blit(boton2, [anchoVentana//2+15, mapi.getAlto()*(TAM+MARGEN)+MARGEN+10])
+        screen.blit(boton3, [anchoVentana//2+85, mapi.getAlto()*(TAM+MARGEN)+MARGEN+10])
         #pinta coste y energía
         if coste!=-1:            
             fuente= pygame.font.Font(None, 25)
