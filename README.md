@@ -1,3 +1,12 @@
+Antes de ejecutar defina que heuristica quiere probar en la *linea 11*
+Que valor de epsilon va dar para las pruebas individuales en la *linea 19*
+
+para el analisis debe de tener instalado panda y matplotlib
+
+pip install matplotlib
+pip install pandas 
+
+
 # busqueda_heuristica
  Desarrollo del algoritmo A estrella para encontrar el camino mas corto
 

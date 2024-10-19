@@ -6,7 +6,6 @@ from pygame.locals import *
 import math
 import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
 
 SELECCION_HEURISTICA = 2
 # 1 para h = 0
@@ -16,7 +15,11 @@ SELECCION_HEURISTICA = 2
 # 5 para Hamming
 # 6 para Octil.
 
+EPSILON = 0.5 # relajación de la restricción de optimalidad
+
+
 # Configuraciónes
+
 
 VALORES_EPSILON = [0, 0.25, 0.5, 1, 2, 3, 4, 5]  # Diferentes valores de epsilon para A*ε
 RESULTADOS  = []  # Lista para almacenar los resultados de los experimentos
@@ -447,30 +450,44 @@ def graficar_resultados(RESULTADOS):
 
     # Filtrar los resultados de A*
     df_a_estrella = df[df['algoritmo'] == 'A*']
-    
-    # Graficar el costo del camino solución para A* según la heurística
-    fig, ax = plt.subplots(1, 2, figsize=(12, 4))  # Dos gráficos en una ventana
-
-    # Gráfico 1: Costo del camino vs. Heurística
-    ax[0].bar(df_a_estrella['heuristica'], df_a_estrella['coste'], color='skyblue')
-    ax[0].set_xlabel('Heurística')
-    ax[0].set_ylabel('Costo del Camino')
-    ax[0].set_title('Costo del Camino por A* según la Heurística')
 
     # Filtrar los resultados de A*ε
     df_a_estrella_epsilon = df[df['algoritmo'] == 'A*ε']
-    
-    # Gráfico 2: Calorías consumidas vs. epsilon
-    ax[1].bar(df_a_estrella_epsilon['epsilon'], df_a_estrella_epsilon['calorias'], color='orange', width=0.3)
-    ax[1].set_xlabel('Valor de Epsilon')
-    ax[1].set_ylabel('Calorías Consumidas')
-    ax[1].set_title('Calorías Consumidas por A*ε según el Valor de Epsilon')
 
-    # Mostrar solo los valores de epsilon en el eje x
+    # Crear una figura con dos subplots
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4))  # 1 fila, 2 columnas
+
+    # Graficar los nodos explorados para A* según la heurística en el primer subplot
+    bars_a_star = ax[0].bar(df_a_estrella['heuristica'], df_a_estrella['nodos_explorados'], color='skyblue')
+    ax[0].set_xlabel('Heurística')
+    ax[0].set_ylabel('Nodos Explorados')
+    ax[0].set_title('Nodos Explorados por A* según la Heurística')
+
+    # Añadir los valores en cada barra para A*
+    for bar in bars_a_star:
+        yval = bar.get_height()
+        ax[0].text(bar.get_x() + bar.get_width()/2, yval + 1, round(yval, 2), ha='center', va='bottom')
+
+    # Graficar los nodos explorados para A*ε según el valor de epsilon en el segundo subplot
+    bars_a_star_epsilon = ax[1].bar(df_a_estrella_epsilon['epsilon'], df_a_estrella_epsilon['nodos_explorados'], color='orange', width=0.3)
+    ax[1].set_xlabel('Valor de Epsilon')
+    ax[1].set_ylabel('Nodos Explorados')
+    ax[1].set_title('Nodos Explorados por A*ε según el Valor de Epsilon')
+
+    # Añadir los valores en cada barra para A*ε
+    for bar in bars_a_star_epsilon:
+        yval = bar.get_height()
+        ax[1].text(bar.get_x() + bar.get_width()/2, yval + 1, round(yval, 2), ha='center', va='bottom')
+
+    # Agregar solo los valores de epsilon en el eje x del segundo gráfico
     ax[1].set_xticks(VALORES_EPSILON)
 
-    plt.tight_layout()  # Para ajustar los gráficos
+    # Ajustar el diseño de la figura
+    plt.tight_layout()
     plt.show()
+
+
+
 # función principal
 def main():
 
@@ -554,7 +571,7 @@ def main():
                         elif pulsaBoton(mapi, pos)==2:
                             ###########################                                                   
                             #coste, cal=llamar a A estrella subepsilon
-                            epsilon = 0.5
+                            epsilon = EPSILON
                             resultado=a_estrella_epsilon(mapi, origen, destino, epsilon, camino)                    
                             if resultado is not None:
                                 camino, coste, matriz_exploracion, cal = resultado
