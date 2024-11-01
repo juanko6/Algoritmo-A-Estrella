@@ -7,7 +7,7 @@ import math
 import matplotlib.pyplot as plt
 import pandas as pd
 
-SELECCION_HEURISTICA = 2
+SELECCION_HEURISTICA = 6
 # 1 para h = 0
 # 2 para Manhattan, 
 # 3 para Euclidiana, 
@@ -21,7 +21,7 @@ EPSILON = 0.5 # relajación de la restricción de optimalidad
 # Configuraciónes
 
 
-VALORES_EPSILON = [0, 0.25, 0.5, 1, 2, 3, 4, 5]  # Diferentes valores de epsilon para A*ε
+VALORES_EPSILON = [0, 0.25, 0.5, 1, 2, 4]  # Diferentes valores de epsilon para A*ε
 RESULTADOS  = []  # Lista para almacenar los resultados de los experimentos
 
 HEURISTICAS = [1, 2, 3, 4, 5, 6]  # h=0, Manhattan, Euclidiana, Chebyshev, Hamming, Octil
@@ -54,12 +54,80 @@ LI=[] # estados seleccionados y expandidos
 # Funciones para analisis
 # ---------------------------------------------------------------------
 
+def ejecutar_experimentos_en_mapas():
+    
+    resultados = []
+    mapas = [
+        {"nombre": "mapa_fácil", "origen": (4, 1), "destino": (3, 14), "archivo": "mapa_facil.txt"},
+        {"nombre": "mapa_moderado", "origen": (4, 1), "destino": (3, 14), "archivo": "mapa_moderado.txt"},
+        {"nombre": "mapa_difícil", "origen": (4, 1), "destino": (3, 14), "archivo": "mapa_complejo.txt"}
+    ]
+
+    for mapa_info in mapas:
+        mapi = Mapa(mapa_info["archivo"])
+        origen = Casilla(*mapa_info["origen"])
+        destino = Casilla(*mapa_info["destino"])
+
+        # Ejecutar A* para cada heurística
+        for heuristica in HEURISTICAS:
+            global SELECCION_HEURISTICA
+            SELECCION_HEURISTICA = heuristica
+            
+            # Reiniciar el camino y las listas antes de cada ejecución
+            camino = inic(mapi)
+            LI.clear()
+            LF.clear()
+            
+            resultado = a_estrella(mapi, origen, destino, camino)
+            if resultado is not None:
+                camino_resultado, coste_total, _, cal = resultado
+                resultados.append({
+                    'mapa': mapa_info["nombre"],
+                    'algoritmo': 'A*',
+                    'heuristica': NOMBRES_HEURISTICAS[heuristica],
+                    'epsilon': None,
+                    'coste': coste_total,
+                    'calorias': cal,
+                    'nodos_explorados': len(LI)
+                })
+            else:
+                print(f"Error: No se encontró un camino válido en {mapa_info['nombre']} usando la heurística {NOMBRES_HEURISTICAS[heuristica]}.")
+
+        # Ejecutar A*ε para cada valor de epsilon y cada heurística
+        for heuristica in HEURISTICAS:
+            SELECCION_HEURISTICA = heuristica
+            for epsilon in VALORES_EPSILON:
+                camino = inic(mapi)
+                LI.clear()
+                LF.clear()
+                
+                resultado = a_estrella_epsilon(mapi, origen, destino, epsilon, camino)
+                if resultado is not None:
+                    camino_resultado, coste_total, _, cal = resultado
+                    resultados.append({
+                        'mapa': mapa_info["nombre"],
+                        'algoritmo': 'A*ε',
+                        'heuristica': NOMBRES_HEURISTICAS[heuristica],
+                        'epsilon': epsilon,
+                        'coste': coste_total,
+                        'calorias': cal,
+                        'nodos_explorados': len(LI)
+                    })
+                else:
+                    print(f"Error: No se encontró un camino válido en {mapa_info['nombre']} con epsilon {epsilon} y heurística {NOMBRES_HEURISTICAS[heuristica]}.")
+
+    return resultados
+
+
 def ejecutar_experimentos(mapa, origen, destino, camino):
+    RESULTADOS.clear()
 
     for heuristica in HEURISTICAS:
         global SELECCION_HEURISTICA
         SELECCION_HEURISTICA = heuristica
 
+        LI.clear()
+        LF.clear()
         resultado = a_estrella(mapa, origen, destino, camino)
         if resultado is None:
             print(f"Error: No se encontró un camino válido con la heurística {NOMBRES_HEURISTICAS[heuristica]}.")
@@ -76,7 +144,8 @@ def ejecutar_experimentos(mapa, origen, destino, camino):
 
         # Ejecutar A*ε para cada valor de epsilon
         for epsilon in VALORES_EPSILON:
-            LI.clear()  # Limpiar nodos explorados antes de cada ejecución
+            LI.clear()
+            LF.clear()
             resultado = a_estrella_epsilon(mapa, origen, destino, epsilon, camino)
             if resultado is None:
                 print(f"Error: No se encontró un camino válido con epsilon {epsilon}.")
@@ -486,10 +555,77 @@ def graficar_resultados(RESULTADOS):
     plt.tight_layout()
     plt.show()
 
+def graficar_resultados_multi_mapa(resultados):
+    # Convertir los resultados en un DataFrame de pandas
+    df = pd.DataFrame(resultados)
+    
+    # Filtrar solo los datos de A* (sin epsilon) para el primer gráfico
+    df_a_estrella = df[df['algoritmo'] == 'A*']
+    # Filtrar solo los datos de A*ε (con valores de epsilon) para el segundo gráfico
+    df_a_estrella_epsilon = df[df['algoritmo'] == 'A*ε']
+    
+    # Crear una figura con dos subplots en la misma ventana
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+    
+    # Obtener los nombres de los mapas y heurísticas para A*
+    mapas = df_a_estrella['mapa'].unique()
+    heuristicas = df_a_estrella['heuristica'].unique()
+    
+    # Establecer el ancho de cada barra
+    bar_width = 0.15
+    index = range(len(mapas))
+    
+    # Graficar los nodos explorados para A* según la heurística en el primer subplot
+    for i, heuristica in enumerate(heuristicas):
+        datos_heuristica = df_a_estrella[df_a_estrella['heuristica'] == heuristica]
+        nodos_por_mapa = [datos_heuristica[datos_heuristica['mapa'] == mapa]['nodos_explorados'].values[0] for mapa in mapas]
+        bars = ax1.bar([p + i * bar_width for p in index], nodos_por_mapa, bar_width, label=heuristica)
+        
+        # Añadir los valores en la parte superior de cada barra
+        for bar in bars:
+            yval = bar.get_height()
+            ax1.text(bar.get_x() + bar.get_width() / 2, yval, int(yval), ha='center', va='bottom')
+    
+    ax1.set_xlabel('Mapa')
+    ax1.set_ylabel('Nodos Explorados')
+    ax1.set_title('Nodos Explorados por A* según la Heurística y el Mapa')
+    ax1.set_xticks([p + (len(heuristicas) - 1) * bar_width / 2 for p in index])
+    ax1.set_xticklabels(mapas)
+    ax1.legend(title='Heurística')
+    
+    # Obtener los nombres de los mapas y valores de epsilon para A*ε
+    epsilons = df_a_estrella_epsilon['epsilon'].unique()
+    
+    # Graficar los nodos explorados para A*ε según el valor de epsilon en el segundo subplot
+    for i, epsilon in enumerate(epsilons):
+        datos_epsilon = df_a_estrella_epsilon[df_a_estrella_epsilon['epsilon'] == epsilon]
+        nodos_por_mapa = [datos_epsilon[datos_epsilon['mapa'] == mapa]['nodos_explorados'].values[0] for mapa in mapas]
+        bars = ax2.bar([p + i * bar_width for p in index], nodos_por_mapa, bar_width, label=f'ε = {epsilon}')
+        
+        # Añadir los valores en la parte superior de cada barra
+        for bar in bars:
+            yval = bar.get_height()
+            ax2.text(bar.get_x() + bar.get_width() / 2, yval, int(yval), ha='center', va='bottom')
+    
+    ax2.set_xlabel('Mapa')
+    ax2.set_ylabel('Nodos Explorados')
+    ax2.set_title('Nodos Explorados por A*ε según el Valor de Epsilon y el Mapa')
+    ax2.set_xticks([p + (len(epsilons) - 1) * bar_width / 2 for p in index])
+    ax2.set_xticklabels(mapas)
+    ax2.legend(title='Valor de Epsilon')
+    
+    # Ajustar el diseño de la figura
+    plt.tight_layout()
+    plt.show()
+
+# Llamar a la función con los resultados generados
 
 
 # función principal
 def main():
+
+    resultados = ejecutar_experimentos_en_mapas()
+    graficar_resultados_multi_mapa(resultados)
 
     pygame.init()
     global cal
@@ -497,7 +633,7 @@ def main():
     reloj=pygame.time.Clock()
     
     if len(sys.argv)==1: #si no se indica un mapa coge mapa.txt por defecto
-        file='mapa.txt'
+        file='mapa1.txt'
     else:
         file=sys.argv[-1]
 
