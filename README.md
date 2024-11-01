@@ -1,76 +1,40 @@
-Antes de ejecutar defina que heuristica quiere probar en la *linea 11*
-Que valor de epsilon va dar para las pruebas individuales en la *linea 19*
+Antes de ejecutar defina que heuristica quiere probar en la *linea 10*
+Que valor de epsilon va dar para las pruebas individuales en la *linea 18*
 
-para el analisis debe de tener instalado panda y matplotlib
+si desea tener mas valores para epsilon agreguelos a la lista en la *linea 24*
+
+para el analisis debe de tener instalado pygame, panda y matplotlib
 
 pip install matplotlib
 pip install pandas 
+pip install pygame
 
+1. Introducción
+En esta práctica, se implementaron y analizaron los algoritmos de búsqueda A* y A*ε, aplicados a la resolución de problemas de camino en un mapa con diferentes tipos de terreno. El objetivo es encontrar la ruta más eficiente entre un punto de origen y un destino, minimizando el coste total de movimiento, que en este caso se simula mediante un gasto en calorías según el tipo de terreno. Los terrenos incluyen hierba, agua y roca, cada uno con un coste de desplazamiento diferente.
+Para mejorar la eficiencia del algoritmo y experimentar con distintos enfoques, se han implementado varias heurísticas:
 
-# busqueda_heuristica
- Desarrollo del algoritmo A estrella para encontrar el camino mas corto
+Manhattan: Calcula la distancia total en términos de pasos horizontales y verticales, útil para mapas con movimientos en cuadrículas sin diagonales.
+h(n)=∣xactual-xmeta∣+∣yactual-ymeta∣
 
-Objetivos:
-• Comprender el funcionamiento de la búsqueda heurística y en concreto del algoritmo
-A y del A*ε.
-• Implementar los algoritmos A* y A*ε y saber cómo seleccionar una heurística apropiada
-al problema.
-• Realizar un análisis cuantitativo respecto al número de nodos explorados con este
-algoritmo.
+Euclidiana: Calcula la distancia en línea recta, considerando tanto desplazamientos horizontales/verticales como diagonales, adecuada cuando los movimientos son continuos.
+h(n)=√(xactual-xmeta)2+(yactual-ymeta)2
 
-# Distancias y Heurísticas Utilizadas
+Chebyshev: Similar a la distancia Manhattan, pero también considera movimientos diagonales al mismo coste que los horizontales y verticales.
+h(n)=max(∣xactual-xmeta∣,∣yactual-ymeta∣)
 
-En este proyecto, utilizamos varias métricas de distancia como heurísticas para resolver problemas de búsqueda en espacios discretos (como una cuadrícula). A continuación se describen las diferentes métricas de distancia empleadas:
+Hamming: Simplemente cuenta la cantidad de diferencias en fila y columna entre el punto actual y el destino, sin considerar distancias reales.
+h(n)=1(xactual ≠ xmeta)+1(yactual  ≠ ymeta)
 
-## 1. Distancia Manhattan
+Octil: Combina movimientos en línea recta y diagonales, con un coste adicional para los desplazamientos diagonales, lo que lo hace más adecuado en terrenos donde ambos tipos de movimiento son posibles.
+h(n)=max(Δx,Δy)+(√2-1)⋅min(Δx,Δy)
+donde:
+Δx=∣xactual-xmeta∣,      Δy=∣yactual-ymeta
+Esta diversidad de heurísticas permite analizar cómo influyen en la cantidad de nodos explorados, el coste total y el camino solución, en el algoritmo A*.
 
-La **distancia Manhattan** (también conocida como **distancia de la ciudad** o **distancia de bloques**) se refiere al número total de pasos que se requieren para moverse desde un punto a otro en una cuadrícula, únicamente a través de movimientos horizontales y verticales. Imagina una persona caminando por una ciudad con calles que se cruzan en ángulos rectos, donde solo pueden caminar en líneas rectas, no en diagonal.
+Conclusiones
+Tanto A* como A*ε son algoritmos efectivos para la búsqueda de caminos, y su elección depende del objetivo específico de la aplicación. A* puede que sea más adecuado cuando se necesita un camino corto y rápido, mientras que A*ε es preferible cuando se busca optimizar el consumo de recursos energéticos en terrenos diversos.
 
-**Fórmula:**
-
-h(n) = |x_meta - x_nodo| + |y_meta - y_nodo|
-
-Esta métrica es útil para espacios donde el movimiento diagonal no está permitido, como en un plano de calles o una cuadrícula de un videojuego.
-
-## 2. Distancia Euclidiana
-
-La **distancia Euclidiana** es la distancia más corta entre dos puntos en un espacio cartesiano (como el plano XY) y se calcula utilizando el teorema de Pitágoras. Representa la distancia en línea recta entre dos puntos, como si se trazara una cuerda entre ellos.
-
-**Fórmula:**
-
-h(n) = sqrt((x_meta - x_nodo)^2 + (y_meta - y_nodo)^2)
-
-Se utiliza cuando se permite el movimiento en diagonal, como en el espacio real.
-
-## 3. Distancia Chebyshev
-
-La **distancia Chebyshev** mide la cantidad mínima de movimientos necesarios para moverse de un punto a otro en una cuadrícula, permitiendo movimientos diagonales y ortogonales (horizontales y verticales). Es útil cuando los movimientos diagonales cuestan lo mismo que los horizontales o verticales.
-
-**Fórmula:**
-
-h(n) = max(|x_meta - x_nodo|, |y_meta - y_nodo|)
-
-## 4. Distancia Hamming
-
-La **distancia Hamming** mide la cantidad de posiciones en las que dos secuencias de igual longitud difieren entre sí. Es comúnmente usada en áreas como la teoría de la codificación y detección de errores, ya que cuenta el número de diferencias entre dos cadenas o secuencias discretas.
-
-**Fórmula:**
-
-h = número de posiciones donde los elementos son diferentes
-
-No tiene en cuenta la magnitud de la diferencia, solo si las posiciones son iguales o no.
-
-## 5. Distancia Canberra
-
-La **distancia Canberra** es una métrica que compara dos puntos sensibles a pequeñas diferencias entre ellos. Se utiliza en problemas donde pequeñas variaciones son importantes. Es la suma de las fracciones de las diferencias absolutas normalizadas entre dos puntos.
-
-**Fórmula:**
-
-h(n) = sum(|x_meta - x_nodo| / (|x_meta| + |x_nodo|))
-
-Esta métrica resalta pequeñas diferencias, haciéndola útil en problemas donde se necesita destacar variaciones mínimas.
-
-
+Este trabajo resalta la importancia de adaptar los algoritmos de búsqueda a las necesidades particulares de cada escenario, optimizando la búsqueda no solo en términos de distancia, sino también considerando factores adicionales como el consumo energético, lo cual puede ser crucial en aplicaciones avanzadas de inteligencia artificial y robótica.
 
 
 
